@@ -1,5 +1,11 @@
 use crate::{
-    domains::{data_stores::UserStore, error::AuthAPIError, user::User},
+    domains::{
+        data_stores::UserStore,
+        email::Email,
+        error::AuthAPIError,
+        password::{self, Password},
+        user::User,
+    },
     AppState,
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
@@ -9,18 +15,23 @@ pub async fn signup<T: UserStore + Clone + Send + Sync>(
     State(state): State<AppState<T>>,
     Json(request): Json<SignupRequest>,
 ) -> Result<impl IntoResponse, AuthAPIError> {
+    let email;
+    let password;
+
+    match Email::parse(request.email) {
+        Ok(value) => email = value,
+        Err(s) => return Err(AuthAPIError::InvalidCredentials),
+    }
+    match Password::parse(request.password) {
+        Ok(value) => password = value,
+        Err(s) => return Err(AuthAPIError::InvalidCredentials),
+    }
+
     let user = User {
-        email: request.email,
-        password: request.password,
+        email: email,
+        password: password,
         requires_2fa: request.requires_2fa,
     };
-
-    if (!user.email.contains("@") || user.email.len() == 0 || user.password.len() < 8) {
-        let response = Json(SignupResponse {
-            message: "User created successfully!".to_string(),
-        });
-        return Err(AuthAPIError::InvalidCredentials);
-    }
 
     let mut user_store = state.user_store.write().await;
     let existing_user = user_store.get_user(&user.email).await;

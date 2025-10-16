@@ -1,8 +1,6 @@
 use auth_service::app_state::AppState;
 use auth_service::services;
 use auth_service::Application;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[tokio::main]
 async fn main() {
