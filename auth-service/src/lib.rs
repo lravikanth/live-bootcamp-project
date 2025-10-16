@@ -3,7 +3,10 @@ mod domains;
 pub mod routes;
 pub mod services;
 
-use crate::{domains::error::AuthAPIError, routes::*};
+use crate::{
+    domains::{data_stores::UserStore, error::AuthAPIError},
+    routes::*,
+};
 
 use std::error::Error;
 
@@ -24,7 +27,10 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build(app_state: AppState, address: &str) -> Result<Self, Box<dyn Error>> {
+    pub async fn build<T: UserStore + Clone + Send + Sync + 'static>(
+        app_state: AppState<T>,
+        address: &str,
+    ) -> Result<Self, Box<dyn Error>> {
         // Move the Router definition from `main.rs` to here.
         // Also, remove the `hello` route.
         // We don't need it at this point!

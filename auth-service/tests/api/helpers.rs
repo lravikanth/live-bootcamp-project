@@ -14,7 +14,7 @@ pub struct TestApp {
 impl TestApp {
     pub async fn new() -> Self {
         let users_store = services::hashmap_user_store::HashMapUserStore::default();
-        let app_state = AppState::new(Arc::new(RwLock::new(users_store)));
+        let app_state = AppState::new(users_store);
 
         let app = Application::build(app_state, "127.0.0.1:0")
             .await

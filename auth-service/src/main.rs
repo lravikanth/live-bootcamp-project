@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 #[tokio::main]
 async fn main() {
     let users_store = services::hashmap_user_store::HashMapUserStore::default();
-    let app_state = AppState::new(Arc::new(RwLock::new(users_store)));
+    let app_state = AppState::new(users_store);
 
     let app = Application::build(app_state, "0.0.0.0:3000")
         .await

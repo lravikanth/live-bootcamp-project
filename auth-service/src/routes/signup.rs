@@ -1,12 +1,12 @@
 use crate::{
-    domains::{error::AuthAPIError, user::User},
+    domains::{data_stores::UserStore, error::AuthAPIError, user::User},
     AppState,
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 
-pub async fn signup(
-    State(state): State<AppState>,
+pub async fn signup<T: UserStore + Clone + Send + Sync>(
+    State(state): State<AppState<T>>,
     Json(request): Json<SignupRequest>,
 ) -> Result<impl IntoResponse, AuthAPIError> {
     let user = User {
@@ -23,12 +23,12 @@ pub async fn signup(
     }
 
     let mut user_store = state.user_store.write().await;
-    let existing_user = user_store.get_user(&user.email);
+    let existing_user = user_store.get_user(&user.email).await;
     if existing_user.is_ok() {
         return Err(AuthAPIError::UserAlreadyExists);
     }
 
-    let add_user = user_store.add_user(user);
+    let add_user = user_store.add_user(user).await;
     if (add_user.is_err()) {
         return Err(AuthAPIError::UnexpectedError);
     }
