@@ -2,6 +2,7 @@ pub mod app_state;
 mod domains;
 pub mod routes;
 pub mod services;
+pub mod utils;
 
 use crate::{
     domains::{data_stores::UserStore, error::AuthAPIError},
@@ -18,6 +19,7 @@ use axum::{
     serve::Serve,
     Json, Router,
 };
+use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use tower_http::services::ServeDir;
 
@@ -36,7 +38,7 @@ impl Application {
         // We don't need it at this point!
         let router = Router::new()
             .nest_service("/", ServeDir::new("assets"))
-            .route("/login", post(login))
+            .route("/login", post(post(login)))
             .route("/verify-2fa", post(verify_2fa))
             .route("/logout", post(logout))
             .route("/verify-token", post(verify_token))
@@ -68,6 +70,7 @@ impl IntoResponse for AuthAPIError {
             AuthAPIError::UserAlreadyExists => (StatusCode::CONFLICT, "User Already exists"),
             AuthAPIError::InvalidCredentials => (StatusCode::BAD_REQUEST, "Invalid Credentials"),
             AuthAPIError::UnexpectedError => (StatusCode::INTERNAL_SERVER_ERROR, "Unexpcted Error"),
+            AuthAPIError::IncorrectCredentials => (StatusCode::UNAUTHORIZED, "Unauthorized"),
         };
 
         let body = Json(ErrorResponse {

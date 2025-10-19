@@ -2,6 +2,7 @@ use auth_service::app_state::AppState;
 use auth_service::services;
 use auth_service::Application;
 use reqwest::Client;
+use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -38,7 +39,7 @@ impl TestApp {
     }
     pub async fn post_signup<Body>(&self, body: &Body) -> reqwest::Response
     where
-        Body: serde::Serialize,
+        Body: Serialize,
     {
         self.http_client
             .post(&format!("{}/signup", &self.address))
@@ -59,9 +60,13 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
-    pub async fn post_login(&self) -> reqwest::Response {
+    pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: Serialize,
+    {
         self.http_client
             .post(format!("{}/login", &self.address))
+            .json(body)
             .send()
             .await
             .expect("Failed to execute request.")

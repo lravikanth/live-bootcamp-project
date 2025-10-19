@@ -2,7 +2,7 @@ use crate::domains::data_stores::{UserStore, UserStoreError};
 use crate::domains::email::Email;
 use crate::domains::user;
 use async_trait::async_trait;
-use std::collections::{hash_map, HashMap};
+use std::collections::HashMap;
 
 #[derive(Default, Clone)]
 pub struct HashMapUserStore {
@@ -28,8 +28,13 @@ impl UserStore for HashMapUserStore {
     }
 
     async fn validate_user(&self, email: &Email, password: &str) -> Result<(), UserStoreError> {
-        let r = self.get_user(email).await.unwrap();
-        if r.password.as_ref() == password {
+        let r = self.get_user(email).await;
+
+        if r.is_err() {
+            return Err(UserStoreError::UserNotFound);
+        }
+
+        if r.is_ok_and(|x| x.password.as_ref() == password) {
             Ok(())
         } else {
             Err(UserStoreError::InvalidCredentials)
@@ -38,12 +43,8 @@ impl UserStore for HashMapUserStore {
 }
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
 
-    use crate::{
-        domains::{email::Email, password::Password},
-        services::hashmap_user_store,
-    };
+    use crate::domains::{email::Email, password::Password};
 
     use super::*;
 
@@ -53,8 +54,8 @@ mod tests {
         let password = Password::parse("Password123".to_string()).unwrap();
 
         let u1 = user::User {
-            email: email,
-            password: password,
+            email,
+            password,
             requires_2fa: true,
         };
 
@@ -69,13 +70,13 @@ mod tests {
         let password = Password::parse("Password123".to_string()).unwrap();
 
         let u1 = user::User {
-            email: email,
-            password: password,
+            email,
+            password,
             requires_2fa: true,
         };
 
         let mut store = HashMapUserStore::default();
-        let first = store.add_user(u1).await;
+        let _first = store.add_user(u1).await;
 
         let g = store
             .get_user(&Email::parse("Ravi@gmailk.ocm".to_string()).unwrap())
