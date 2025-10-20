@@ -23,8 +23,8 @@ pub struct LoginInfo {
 
 pub(crate) async fn login<T: UserStore + Clone + Send + Sync>(
     State(state): State<AppState<T>>,
-    Json(request): Json<LoginInfo>,
     jar: CookieJar,
+    Json(request): Json<LoginInfo>,
 ) -> (CookieJar, Result<Response<Body>, AuthAPIError>) {
     let email: Email;
     let password: Password;

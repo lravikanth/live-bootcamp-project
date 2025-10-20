@@ -1,6 +1,8 @@
 use auth_service::app_state::AppState;
 use auth_service::services;
 use auth_service::Application;
+use axum_extra::extract::CookieJar;
+use reqwest::cookie::Jar;
 use reqwest::Client;
 use serde::Serialize;
 use std::sync::Arc;
@@ -9,6 +11,7 @@ use uuid::Uuid;
 
 pub struct TestApp {
     pub address: String,
+    pub cookie_jar: Arc<Jar>,
     pub http_client: reqwest::Client,
 }
 
@@ -16,6 +19,7 @@ impl TestApp {
     pub async fn new() -> Self {
         let users_store = services::hashmap_user_store::HashMapUserStore::default();
         let app_state = AppState::new(users_store);
+        let cookie_jar = Arc::new(Jar::default());
 
         let app = Application::build(app_state, "127.0.0.1:0")
             .await
@@ -28,12 +32,16 @@ impl TestApp {
         #[allow(clippy::let_underscore_future)]
         let _ = tokio::spawn(app.run());
 
-        let http_client = Client::new(); // Create a Reqwest http client instance
+        let http_client = Client::builder()
+            .cookie_provider(cookie_jar.clone())
+            .build()
+            .unwrap(); // Create a Reqwest http client instance
 
         // Create new `TestApp` instance and return it
         //todo!()
         TestApp {
             address,
+            cookie_jar,
             http_client,
         }
     }

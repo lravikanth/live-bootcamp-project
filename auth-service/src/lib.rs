@@ -1,5 +1,6 @@
+#![allow(dead_code, unused_imports, unused_variables, unused_mut)]
 pub mod app_state;
-mod domains;
+pub mod domains;
 pub mod routes;
 pub mod services;
 pub mod utils;
@@ -13,7 +14,7 @@ use std::error::Error;
 
 use app_state::AppState;
 use axum::{
-    http::StatusCode,
+    http::{Method, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     serve::Serve,
@@ -21,7 +22,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
-use tower_http::services::ServeDir;
+use tower_http::{cors::CorsLayer, services::ServeDir};
 
 pub struct Application {
     server: Serve<Router, Router>,
@@ -36,14 +37,28 @@ impl Application {
         // Move the Router definition from `main.rs` to here.
         // Also, remove the `hello` route.
         // We don't need it at this point!
+        let allowed_origins = [
+            "http://localhost:8000".parse()?,
+            // TODO: Replace [YOUR_DROPLET_IP] with your Droplet IP address
+            "http://localhost:3000".parse()?,
+        ];
+
+        let cors = CorsLayer::new()
+            // Allow GET and POST requests
+            .allow_methods([Method::GET, Method::POST])
+            // Allow cookies to be included in requests
+            .allow_credentials(true)
+            .allow_origin(allowed_origins);
+
         let router = Router::new()
             .nest_service("/", ServeDir::new("assets"))
-            .route("/login", post(post(login)))
+            .route("/signup", post(signup))
+            .route("/login", post(login))
             .route("/verify-2fa", post(verify_2fa))
             .route("/logout", post(logout))
             .route("/verify-token", post(verify_token))
-            .route("/signup", post(signup))
-            .with_state(app_state);
+            .with_state(app_state)
+            .layer(cors); // Add CORS config to our Axum router
 
         let listener = tokio::net::TcpListener::bind(address).await?;
         let address = listener.local_addr()?.to_string();
@@ -71,6 +86,8 @@ impl IntoResponse for AuthAPIError {
             AuthAPIError::InvalidCredentials => (StatusCode::BAD_REQUEST, "Invalid Credentials"),
             AuthAPIError::UnexpectedError => (StatusCode::INTERNAL_SERVER_ERROR, "Unexpcted Error"),
             AuthAPIError::IncorrectCredentials => (StatusCode::UNAUTHORIZED, "Unauthorized"),
+            AuthAPIError::MissingToken => (StatusCode::BAD_REQUEST, "Invalid Credentials"),
+            AuthAPIError::InvalidToken => (StatusCode::UNAUTHORIZED, "Unauthorized"),
         };
 
         let body = Json(ErrorResponse {

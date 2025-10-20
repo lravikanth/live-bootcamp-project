@@ -3,11 +3,11 @@ use chrono::Utc;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
+use super::constants::{JWT_COOKIE_NAME, JWT_SECRET};
 use crate::domains::email::Email;
 
-use super::constants::{JWT_COOKIE_NAME, JWT_SECRET};
-
 // This is definitely NOT a good secret. We will update it soon!
+//const JWT_SECRET: &str = "secret";
 
 // Create cookie with a new JWT auth token
 pub fn generate_auth_cookie(email: &Email) -> Result<Cookie<'static>, GenerateTokenError> {
@@ -57,6 +57,7 @@ fn generate_auth_token(email: &Email) -> Result<String, GenerateTokenError> {
 
     create_token(&claims).map_err(GenerateTokenError::TokenError)
 }
+
 // Check if JWT auth token is valid by decoding it using the JWT secret
 pub async fn validate_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
     decode::<Claims>(
@@ -75,6 +76,7 @@ fn create_token(claims: &Claims) -> Result<String, jsonwebtoken::errors::Error> 
         &EncodingKey::from_secret(JWT_SECRET.as_bytes()),
     )
 }
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
