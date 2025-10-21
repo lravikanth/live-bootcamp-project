@@ -39,7 +39,6 @@ impl Application {
         // We don't need it at this point!
         let allowed_origins = [
             "http://localhost:8000".parse()?,
-            // TODO: Replace [YOUR_DROPLET_IP] with your Droplet IP address
             "http://localhost:3000".parse()?,
         ];
 
