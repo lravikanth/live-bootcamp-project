@@ -1,8 +1,9 @@
 use crate::helpers::TestApp;
 use crate::login::SigninResponse;
 
+use auth_service::domains::data_stores::BannedTokenStore;
 use auth_service::domains::email::{self, Email};
-use auth_service::utils::auth::generate_auth_cookie;
+use auth_service::utils::auth::{generate_auth_cookie, generate_auth_token};
 use auth_service::utils::constants::JWT_COOKIE_NAME;
 
 use reqwest::Url;
@@ -36,22 +37,19 @@ async fn should_return_200_if_valid_jwt_cookie() {
     let app = TestApp::new().await;
     let email = Email::parse("lravikanth@gmail.com".to_string()).unwrap();
     let cookie = generate_auth_cookie(&email).unwrap();
+    let token = generate_auth_token(&email).unwrap();
 
     app.cookie_jar.add_cookie_str(
         &cookie.to_string(),
         &Url::parse("http://127.0.0.1").expect("Failed to parse URL"),
     );
 
-    // app.cookie_jar.add_cookie_str(
-    //     &format!(
-    //         "{}=invalid; HttpOnly; SameSite=Lax; Secure; Path=/",
-    //         JWT_COOKIE_NAME
-    //     ),
-    //     &Url::parse("http://127.0.0.1").expect("Failed to parse URL"),
-    // );
-
     let resp = app.post_logout().await;
     assert_eq!(resp.status().as_u16(), 200);
+
+    let guard = app.banned_token.read().await;
+    let exists = guard.does_token_exist(token).await;
+    assert!(exists);
 }
 
 #[tokio::test]

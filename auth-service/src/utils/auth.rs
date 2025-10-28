@@ -1,13 +1,26 @@
+use std::fmt::Display;
+use std::result;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use chrono::Utc;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
 use super::constants::{JWT_COOKIE_NAME, JWT_SECRET};
+use crate::domains::data_stores::{BannedTokenError, BannedTokenStore};
 use crate::domains::email::Email;
+use crate::domains::error::AuthAPIError;
 
 // This is definitely NOT a good secret. We will update it soon!
 //const JWT_SECRET: &str = "secret";
+
+#[derive(Debug)]
+pub enum ValidateTokenError {
+    TokenError(jsonwebtoken::errors::Error),
+    Banned(AuthAPIError),
+}
 
 // Create cookie with a new JWT auth token
 pub fn generate_auth_cookie(email: &Email) -> Result<Cookie<'static>, GenerateTokenError> {
@@ -59,13 +72,24 @@ pub fn generate_auth_token(email: &Email) -> Result<String, GenerateTokenError> 
 }
 
 // Check if JWT auth token is valid by decoding it using the JWT secret
-pub async fn validate_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
-    decode::<Claims>(
-        token,
-        &DecodingKey::from_secret(JWT_SECRET.as_bytes()),
-        &Validation::default(),
-    )
-    .map(|data| data.claims)
+pub async fn validate_token<T: BannedTokenStore + Send + Sync + Clone>(
+    token: &str,
+    banned_token_store: Arc<RwLock<T>>,
+) -> Result<Claims, ValidateTokenError> {
+    let store = banned_token_store.read().await;
+    let result = store.does_token_exist(token.to_owned()).await;
+
+    if (result) {
+        Err(ValidateTokenError::Banned(AuthAPIError::InvalidToken))
+    } else {
+        decode::<Claims>(
+            token,
+            &DecodingKey::from_secret(JWT_SECRET.as_bytes()),
+            &Validation::default(),
+        )
+        .map(|data| data.claims)
+        .map_err(ValidateTokenError::TokenError)
+    }
 }
 
 // Create JWT auth token by encoding claims using the JWT secret
@@ -85,6 +109,8 @@ pub struct Claims {
 
 #[cfg(test)]
 mod tests {
+    use crate::services::hashset_banned_token_store::HashsetBannedTokenStore;
+
     use super::*;
 
     #[tokio::test]
@@ -120,7 +146,13 @@ mod tests {
     async fn test_validate_token_with_valid_token() {
         let email = Email::parse("test@example.com".to_owned()).unwrap();
         let token = generate_auth_token(&email).unwrap();
-        let result = validate_token(&token).await.unwrap();
+        let mut banned_store = Arc::new(RwLock::new(HashsetBannedTokenStore::default()));
+
+        {
+            let mut gaurd = banned_store.write().await;
+            gaurd.add_banned_token(token.clone());
+        }
+        let result = validate_token(&token, banned_store).await.unwrap();
         assert_eq!(result.sub, "test@example.com");
 
         let exp = Utc::now()
@@ -133,8 +165,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_token_with_invalid_token() {
-        let token = "invalid_token".to_owned();
-        let result = validate_token(&token).await;
-        assert!(result.is_err());
+        let mut banned_store = Arc::new(RwLock::new(HashsetBannedTokenStore::default()));
+
+        {
+            let mut gaurd = banned_store.write().await;
+            gaurd.add_banned_token("foobar".to_string());
+        }
+
+        let token = "foobar".to_owned();
+        let result1 = validate_token(&token, banned_store).await;
+
+        assert!(result1.is_err());
     }
 }

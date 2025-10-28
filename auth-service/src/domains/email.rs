@@ -1,4 +1,4 @@
-#[derive(Clone, PartialEq, Hash, Eq)]
+#[derive(Clone, PartialEq, Hash, Eq, Debug)]
 pub struct Email(String);
 
 impl Email {

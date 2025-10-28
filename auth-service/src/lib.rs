@@ -6,7 +6,10 @@ pub mod services;
 pub mod utils;
 
 use crate::{
-    domains::{data_stores::UserStore, error::AuthAPIError},
+    domains::{
+        data_stores::{BannedTokenStore, TwoFACodeStore, UserStore},
+        error::AuthAPIError,
+    },
     routes::*,
 };
 
@@ -30,8 +33,12 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build<T: UserStore + Clone + Send + Sync + 'static>(
-        app_state: AppState<T>,
+    pub async fn build<
+        T: UserStore + Clone + Send + Sync + 'static,
+        T1: BannedTokenStore + Clone + Send + Sync + 'static,
+        T2: TwoFACodeStore + Clone + Send + Sync + 'static,
+    >(
+        app_state: AppState<T, T1, T2>,
         address: &str,
     ) -> Result<Self, Box<dyn Error>> {
         // Move the Router definition from `main.rs` to here.
@@ -68,7 +75,6 @@ impl Application {
     }
 
     pub async fn run(self) -> Result<(), std::io::Error> {
-        println!("listening on {}", &self.address);
         self.server.await
     }
 }

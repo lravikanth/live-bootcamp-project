@@ -1,3 +1,5 @@
+use auth_service::domains::data_stores::TwoFACodeStore;
+use auth_service::domains::email::Email;
 use auth_service::utils::constants::JWT_COOKIE_NAME;
 use axum::Json;
 use serde::Serialize;
@@ -106,6 +108,55 @@ async fn should_return_200_if_valid_credentials_and_2fa_disabled() {
         .expect("No auth cookie found");
 
     assert!(!auth_cookie.value().is_empty());
+}
+
+#[tokio::test]
+async fn should_return_206_if_valid_credentials_and_2fa_enabled() {
+    let app = TestApp::new().await;
+    let test_case = serde_json::json!({
+        "email":"ravi@gmail.com",
+        "password": "password123",
+        "requires2FA": true
+    });
+
+    let response = app.post_signup(&test_case).await; // call `post_signup`
+
+    //println!("{}", response.to_string());
+    assert_eq!(response.status().as_u16(), 201);
+
+    let login_body = serde_json::json!({
+        "email": "ravi@gmail.com",
+        "password": "password123",
+    });
+
+    let response = app.post_login(&test_case).await;
+    // assert_eq!(response.status().as_u16(), 206);
+    // let message = response
+    //     .clone()
+    //     .json::<auth_service::routes::TwoFactorAuthResponse>()
+    //     .await
+    //     .expect("Could not deserialize response body to TwoFactorAuthResponse")
+    //     .message;
+
+    // assert_eq!(message, "2FA required".to_owned());
+    let json_body = response
+        .json::<auth_service::routes::TwoFactorAuthResponse>()
+        .await
+        .unwrap();
+
+    assert_eq!(json_body.message, "2FA required".to_owned());
+
+    assert_eq!(
+        json_body.login_attempt_id,
+        app.two_fa_code
+            .read()
+            .await
+            .get_code(&Email::parse("ravi@gmail.com".to_string()).unwrap())
+            .await
+            .unwrap()
+            .0
+            .as_ref()
+    );
 }
 
 #[derive(Serialize, PartialEq, Debug, serde::Deserialize)]

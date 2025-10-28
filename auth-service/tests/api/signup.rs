@@ -8,7 +8,6 @@ async fn should_return_422_if_malformed_input() {
 
     let random_email = TestApp::get_random_email();
 
-    // TODO: add more malformed input test cases
     let test_cases = [serde_json::json!({
         "password": "password123",
         "requires2FA": true
@@ -63,7 +62,6 @@ async fn should_return_400_if_invalid_input() {
     // make HTTP calls to the signup route. Assert a 400 HTTP status code is returned.
     let app = TestApp::new().await;
 
-    // TODO: add more malformed input test cases
     let test_cases = [
         serde_json::json!({
             "email": "ragnmai",

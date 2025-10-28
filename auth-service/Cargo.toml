@@ -18,7 +18,7 @@ async-trait = "0.1.78"
 axum-extra = { version = "0.9.2", features = ["cookie"] }
 dotenvy = "0.15.7"
 lazy_static = "1.4.0"
-
+rand = "0.8.5"
 [dev-dependencies]
 reqwest = { version = "0.11.26", default-features = false, features = [
     "json",
