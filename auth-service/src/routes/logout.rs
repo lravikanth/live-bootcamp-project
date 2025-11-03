@@ -6,6 +6,7 @@ use crate::{
     domains::{
         data_stores::{BannedTokenStore, TwoFACodeStore, UserStore},
         error::AuthAPIError,
+        EmailClient,
     },
     utils::{auth::validate_token, constants::JWT_COOKIE_NAME},
 };
@@ -14,9 +15,10 @@ pub(crate) async fn logout<
     T: UserStore + Clone + Send + Sync,
     T1: BannedTokenStore + Clone + Send + Sync,
     T2: TwoFACodeStore + Clone + Send + Sync,
+    T3: EmailClient + Clone + Send + Sync,
 >(
     jar: CookieJar,
-    State(state): State<AppState<T, T1, T2>>,
+    State(state): State<AppState<T, T1, T2, T3>>,
 ) -> (CookieJar, Result<impl IntoResponse, AuthAPIError>) {
     let cookie = match jar.get(JWT_COOKIE_NAME) {
         Some(v) => v,

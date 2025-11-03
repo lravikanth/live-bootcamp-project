@@ -4,7 +4,7 @@ use crate::{
         email::Email,
         error::AuthAPIError,
         password::{self, Password},
-        user::User,
+        user::User, EmailClient,
     },
     AppState,
 };
@@ -15,8 +15,9 @@ pub async fn signup<
     T: UserStore + Clone + Send + Sync,
     T1: BannedTokenStore + Clone + Send + Sync,
     T2: TwoFACodeStore + Clone + Send + Sync,
+    T3: EmailClient + Clone + Send + Sync,
 >(
-    State(state): State<AppState<T, T1, T2>>,
+    State(state): State<AppState<T, T1, T2, T3>>,
     Json(request): Json<SignupRequest>,
 ) -> Result<impl IntoResponse, AuthAPIError> {
     let email;

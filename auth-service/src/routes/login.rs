@@ -17,7 +17,7 @@ use crate::{
         email::Email,
         error::AuthAPIError,
         password::Password,
-        user,
+        user, EmailClient,
     },
     utils::auth::generate_auth_cookie,
 };
@@ -31,8 +31,9 @@ pub(crate) async fn login<
     T: UserStore + Clone + Send + Sync,
     T1: BannedTokenStore + Clone + Send + Sync,
     T2: TwoFACodeStore + Clone + Send + Sync,
+    T3: EmailClient + Clone + Send + Sync,
 >(
-    State(state): State<AppState<T, T1, T2>>,
+    State(state): State<AppState<T, T1, T2, T3>>,
     jar: CookieJar,
     Json(request): Json<LoginInfo>,
 ) -> (CookieJar, Result<Response<Body>, AuthAPIError>) {
@@ -96,22 +97,31 @@ async fn handle_2fa<
     T: UserStore + Clone + Send + Sync,
     T1: BannedTokenStore + Clone + Send + Sync,
     T2: TwoFACodeStore + Clone + Send + Sync,
+    T3: EmailClient + Clone + Send + Sync,
 >(
     jar: CookieJar,
-    state: &AppState<T, T1, T2>,
+    state: &AppState<T, T1, T2, T3>,
     email: &Email,
 ) -> (CookieJar, Result<Response<Body>, AuthAPIError>) {
     let login_attempt_id = LoginAttemptId::default();
     let code = TwoFACode::default();
     {
         let mut s = state.two_fa_store.try_write().unwrap();
-        s.add_code(email.clone(), login_attempt_id.clone(), code)
+        let _ = s
+            .add_code(email.clone(), login_attempt_id.clone(), code.clone())
             .await;
     }
     let response = Json(TwoFactorAuthResponse {
         message: "2FA required".to_string(),
         login_attempt_id: login_attempt_id.as_ref().to_string(),
     });
+    {
+        let email_instance = state.email_client.read().await;
+        let _ = email_instance
+            .send_email(email, "Security code", code.as_ref())
+            .await;
+    }
+
     (
         jar,
         Ok((StatusCode::PARTIAL_CONTENT, response).into_response()),

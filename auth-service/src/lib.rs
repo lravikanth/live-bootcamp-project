@@ -9,6 +9,7 @@ use crate::{
     domains::{
         data_stores::{BannedTokenStore, TwoFACodeStore, UserStore},
         error::AuthAPIError,
+        EmailClient,
     },
     routes::*,
 };
@@ -25,6 +26,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use tower_http::{cors::CorsLayer, services::ServeDir};
 
 pub struct Application {
@@ -37,8 +39,9 @@ impl Application {
         T: UserStore + Clone + Send + Sync + 'static,
         T1: BannedTokenStore + Clone + Send + Sync + 'static,
         T2: TwoFACodeStore + Clone + Send + Sync + 'static,
+        T3: EmailClient + Clone + Send + Sync + 'static,
     >(
-        app_state: AppState<T, T1, T2>,
+        app_state: AppState<T, T1, T2, T3>,
         address: &str,
     ) -> Result<Self, Box<dyn Error>> {
         // Move the Router definition from `main.rs` to here.
@@ -100,4 +103,8 @@ impl IntoResponse for AuthAPIError {
         });
         (status, body).into_response()
     }
+}
+pub async fn get_postgres_pool(url: &str) -> Result<PgPool, sqlx::Error> {
+    // Create a new PostgreSQL connection pool
+    PgPoolOptions::new().max_connections(5).connect(url).await
 }

@@ -1,18 +1,44 @@
 services:
   app-service:
-    # Your Docker Hub username
-    image: ravilukkani/app-service # specify name of image on Docker Hub
-    restart: "always" # automatically restart container when server crashes
-    environment: # set up environment variables
-      AUTH_SERVICE_IP: ${AUTH_SERVICE_IP:-localhost} # Use localhost as the default value
+    image: ravilukkani/app-service
+    restart: always
+    environment:
+      AUTH_SERVICE_IP: ${AUTH_SERVICE_IP:-localhost}
     ports:
-      - "8000:8000" # expose port 8000 so that applications outside the container can connect to it 
-    depends_on: # only run app-service after auth-service has started
+      - "8000:8000"
+    depends_on:
       auth-service:
         condition: service_started
+
   auth-service:
-    # Your Docker Hub username
     image: ravilukkani/auth-service
-    restart: "always" # automatically restart container when server crashes
+    restart: always
     ports:
-      - "3000:3000" # expose port 3000 so that applications outside the container can connect to it 
+      - "3000:3000"
+    env_file:
+      - ./auth-service/.env
+    environment:
+      # Fallback if .env doesn't provide it (optional)
+      DATABASE_URL: "postgres://postgres:rlukkani@db:5432"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:15.2-alpine
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: rlukkani
+    ports:
+      - "5432:5432"
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db:
+    driver: local

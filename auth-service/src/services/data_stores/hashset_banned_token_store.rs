@@ -34,7 +34,7 @@ mod tests {
     use std::collections::HashSet;
 
     use crate::domains::data_stores::{BannedTokenError, BannedTokenStore};
-    use crate::services::hashset_banned_token_store::HashsetBannedTokenStore;
+    use crate::services::data_stores::hashset_banned_token_store::HashsetBannedTokenStore;
 
     #[tokio::test]
     async fn test_add_token() {

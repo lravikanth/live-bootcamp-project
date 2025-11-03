@@ -51,7 +51,7 @@ mod tests {
         LoginAttemptId, TwoFACode, TwoFACodeStore, TwoFACodeStoreError,
     };
     use crate::domains::email::Email;
-    use crate::services::hashmap_two_fa_code_store::HashmapTwoFACodeStore;
+    use crate::services::data_stores::hashmap_two_fa_code_store::HashmapTwoFACodeStore;
 
     #[tokio::test]
     async fn add_valid_codes_test() {
